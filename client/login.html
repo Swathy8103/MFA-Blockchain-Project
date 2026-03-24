@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .selectable-image {
+      cursor: pointer;
+      border: 2px solid transparent;
+      margin: 5px;
+      width: 100px; /* Set desired width */
+      height: 100px; /* Set desired height */
+      object-fit: cover; /* Maintain aspect ratio */
+    }
+    .selected {
+      border-color: green;
+    }
+  </style>
+</head>
+<body>
+  <form id="login-form" action="/login" method="POST">
+    <input type="text" name="username" placeholder="Username" required>
+    <input type="password" name="pin" placeholder="PIN" required>
+    <button type="submit">Login</button>
+  </form>
+
+  <div>
+    <p>Don't have an account? <a href="/signup">Sign up here</a></p>
+  </div>
+
+  <div id="uploaded-images"></div> <!-- Container to show uploaded images -->
+  
+  <div id="selection-container" style="display:none;">
+    <h3>Select Your Images in Order:</h3>
+    <div id="images-to-select"></div> <!-- Container for images to select -->
+    <button id="submit-selection">Submit Selection</button>
+  </div>
+
+  <div id="selected-images-display"></div> <!-- Container for displaying selected images -->
+  
+  <script>
+    const loginForm = document.getElementById('login-form');
+    const selectionContainer = document.getElementById('selection-container');
+    const imagesToSelectDiv = document.getElementById('images-to-select');
+    const selectedImagesDisplay = document.getElementById('selected-images-display');
+    let selectedImages = [];
+
+    // Fetch the images when logging in
+    loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(loginForm);
+        const response = await fetch(loginForm.action, {
+            method: 'POST',
+            body: new URLSearchParams(formData),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // Display images for selection
+            displayImages(data.images);
+            selectionContainer.style.display = 'block'; // Show selection container
+        } else {
+            const error = await response.text();
+            alert(error);
+        }
+    });
+
+    // Function to display images
+    function displayImages(images) {
+        imagesToSelectDiv.innerHTML = ''; // Clear previous images
+        selectedImagesDisplay.innerHTML = ''; // Clear previously selected images
+
+        images.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src; // Set the source from the response
+            img.alt = 'Uploaded Image'; // Alternative text for the image
+            img.classList.add('selectable-image'); // Add class for selection
+            img.addEventListener('click', selectImage); // Add click event listener for selection
+            imagesToSelectDiv.appendChild(img); // Append image to the div
+        });
+    }
+
+    // Function to handle image selection
+    function selectImage(event) {
+        const imgElement = event.target;
+        const src = imgElement.src;
+
+        // Toggle selection
+        if (selectedImages.includes(src)) {
+            selectedImages.splice(selectedImages.indexOf(src), 1); // Remove from selection
+            imgElement.classList.remove('selected'); // Remove selected class
+        } else {
+            if (selectedImages.length < 3) {
+                selectedImages.push(src); // Add to selection
+                imgElement.classList.add('selected'); // Add selected class
+            } else {
+                alert('You can only select up to 3 images.');
+            }
+        }
+
+        // Update the display of selected images
+        updateSelectedImagesDisplay();
+    }
+
+    // Function to update the display of selected images
+    function updateSelectedImagesDisplay() {
+        selectedImagesDisplay.innerHTML = ''; // Clear previous selected images
+
+        selectedImages.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src;
+            img.style.width = '100px'; // Set desired width
+            img.style.height = '100px'; // Set desired height
+            selectedImagesDisplay.appendChild(img); // Append selected image to the display div
+        });
+    }
+
+    // Event listener for Submit Selection button
+    document.getElementById('submit-selection').addEventListener('click', async () => {
+        if (selectedImages.length !== 3) {
+            alert('Please select exactly 3 images.');
+            return;
+        }
+
+        // Submit the selected images to the server for validation
+        const response = await fetch('/validate-selection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: loginForm.username.value, // Get username from the form
+                selectedImages: selectedImages // Pass selected images
+            })
+        });
+
+        const result = await response.json();
+        
+        // Check if login was successful
+        if (result.success) {
+            // Redirect to transaction.html after successful login
+            window.location.href = '/transaction.html';
+        } else {
+            alert(result.message || 'Login failed. Please try again.'); // Show error message to the user
+        }
+    });
+
+  </script>
+
+</body>
+</html>

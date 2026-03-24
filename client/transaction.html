@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .image-container {
+            display: inline-block;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .selected {
+            border: 3px solid green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Transaction</h1>
+    <form id="transaction-form" action="/login" method="POST">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="pin" placeholder="PIN" required>
+        <input type="number" name="amount" placeholder="Amount" required>
+        <button type="button" id="verify-pin">Verify PIN</button>
+    </form>
+
+    <div id="image-selection" style="display:none;">
+        <h3>Select Your Images in Order:</h3>
+        <div id="images-to-select"></div>
+        <button id="submit-selection">Submit Selection</button>
+    </div>
+
+    <div id="selected-images-display"></div>
+
+    <script>
+        let selectedImages = [];
+
+        document.getElementById('verify-pin').addEventListener('click', async () => {
+            const transactionForm = document.getElementById('transaction-form');
+            const formData = new FormData(transactionForm);
+
+            const response = await fetch(transactionForm.action, {
+                method: 'POST',
+                body: new URLSearchParams(formData),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                displayImages(data.images); // Display images for selection
+                document.getElementById('image-selection').style.display = 'block'; // Show selection container
+            } else {
+                const error = await response.text();
+                alert(error);
+            }
+        });
+
+        // Function to display images
+        function displayImages(images) {
+            const imagesToSelectDiv = document.getElementById('images-to-select');
+            imagesToSelectDiv.innerHTML = ''; // Clear previous images
+            selectedImages = []; // Reset selected images
+
+            images.forEach(src => {
+                const img = document.createElement('img');
+                img.src = src; // Set the source from the response
+                img.style.width = '100px'; // Set desired width
+                img.style.height = '100px'; // Set desired height
+                img.alt = 'Uploaded Image'; // Alternative text for the image
+                img.classList.add('image-container'); // Add class for selection
+                img.addEventListener('click', selectImage); // Add click event listener for selection
+                imagesToSelectDiv.appendChild(img); // Append image to the div
+            });
+        }
+
+        // Function to handle image selection
+        function selectImage(event) {
+            const imgElement = event.target;
+            const src = imgElement.src;
+
+            // Toggle selection
+            if (selectedImages.includes(src)) {
+                selectedImages.splice(selectedImages.indexOf(src), 1); // Remove from selection
+                imgElement.classList.remove('selected'); // Remove selected class
+            } else {
+                if (selectedImages.length < 3) {
+                    selectedImages.push(src); // Add to selection
+                    imgElement.classList.add('selected'); // Add selected class
+                } else {
+                    alert('You can only select up to 3 images.');
+                }
+            }
+
+            updateSelectedImagesDisplay();
+        }
+
+        // Function to update the display of selected images
+        function updateSelectedImagesDisplay() {
+            const selectedImagesDisplay = document.getElementById('selected-images-display');
+            selectedImagesDisplay.innerHTML = ''; // Clear previous selected images
+
+            selectedImages.forEach(src => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.style.width = '100px'; // Set desired width
+                img.style.height = '100px'; // Set desired height
+                selectedImagesDisplay.appendChild(img); // Append selected image to the display div
+            });
+        }
+
+        // Event listener for Submit Selection button
+        document.getElementById('submit-selection').addEventListener('click', async () => {
+            if (selectedImages.length !== 3) {
+                alert('Please select exactly 3 images.');
+                return;
+            }
+
+            // Adjust selectedImages to match the format of correct order paths
+            const selectedImagesPaths = selectedImages.map(src => {
+                return `/uploads/${src.split('/').pop()}`; // Extract the filename and prepend '/uploads/'
+            });
+
+            // Submit the selected images to the server for validation
+            const transactionForm = document.getElementById('transaction-form');
+            const response = await fetch('/validate-selection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: transactionForm.username.value, // Get username from the form
+                    selectedImages: selectedImagesPaths, // Pass adjusted selected images
+                    amount: transactionForm.amount.value // Pass the transaction amount
+                })
+            });
+
+            const result = await response.text();
+            alert(result); // Show result to the user
+        });
+    </script>
+</body>
+</html>

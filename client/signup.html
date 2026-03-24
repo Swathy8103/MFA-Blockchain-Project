@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signup</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Add basic styling for selected images */
+    .image-container {
+      display: inline-block;
+      margin: 10px;
+      cursor: pointer; /* Change cursor to indicate clickable images */
+    }
+    .selected {
+      border: 3px solid green;
+    }
+    img {
+      width: 100px;
+      height: 100px;
+      object-fit: cover; /* Maintain aspect ratio of images */
+    }
+  </style>
+</head>
+<body>
+<form id="signup-form" action="/signup" method="POST" enctype="multipart/form-data">
+    <label for="accountNumber">Account Number:</label>
+    <input type="text" name="accountNumber" placeholder="Account Number" minlength="12" required>
+
+    <label for="username">Username:</label>
+    <input type="text" name="username" placeholder="Username" required>
+
+    <label for="pin">PIN:</label>
+    <input type="password" name="pin" placeholder="PIN" minlength="4" maxlength="4" required>
+
+    <label for="confirmPin">Confirm PIN:</label>
+    <input type="password" name="confirmPin" placeholder="Confirm PIN" minlength="4" maxlength="4" required>
+
+    <label for="images">Upload Images (9 images required):</label>
+    <input type="file" name="images" accept="image/*" multiple required>
+
+    <div id="uploaded-images"></div> <!-- Display uploaded images here -->
+
+    <label for="imageOrder">Select the order of the images:</label>
+    <input type="hidden" name="imageOrder" id="imageOrder" required>
+
+    <button type="submit">Sign Up</button>
+</form>
+
+<script>
+    const imageInput = document.querySelector('input[name="images"]');
+    const imageOrderInput = document.getElementById('imageOrder');
+    const uploadedImagesDiv = document.getElementById('uploaded-images');
+
+    let selectedImages = [];
+
+    // Display uploaded images
+    imageInput.addEventListener('change', function () {
+        const files = imageInput.files;
+        uploadedImagesDiv.innerHTML = ''; // Clear previous images
+        selectedImages = []; // Reset selected images
+        imageOrderInput.value = ''; // Clear the imageOrder input
+
+        for (let i = 0; i < files.length; i++) {
+            const imgContainer = document.createElement('div');
+            imgContainer.classList.add('image-container');
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(files[i]);
+            img.dataset.index = i; // Store the index for ordering
+
+            // Handle image selection
+            imgContainer.appendChild(img);
+            imgContainer.onclick = function () {
+                selectImage(i, imgContainer);
+            };
+
+            uploadedImagesDiv.appendChild(imgContainer);
+        }
+    });
+
+    function selectImage(index, imgContainer) {
+        if (selectedImages.includes(index)) {
+            selectedImages = selectedImages.filter(i => i !== index); // Unselect
+            imgContainer.classList.remove('selected');
+        } else if (selectedImages.length < 3) {
+            selectedImages.push(index); // Select up to 3 images
+            imgContainer.classList.add('selected');
+        }
+        imageOrderInput.value = selectedImages.join(','); // Set image order input
+    }
+
+    const signupForm = document.getElementById('signup-form');
+
+    signupForm.addEventListener('submit', async function (event) {
+        event.preventDefault(); // Prevent form submission
+
+        const formData = new FormData(signupForm);
+
+        const pin = formData.get('pin');
+        const confirmPin = formData.get('confirmPin');
+
+        if (pin !== confirmPin) {
+            alert('PIN and Confirm PIN do not match.');
+            return;
+        }
+
+        // Ensure that exactly 9 images are uploaded
+        const images = formData.getAll('images');
+        if (images.length !== 9) {
+            alert('You must upload exactly 9 images.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/signup', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                alert('Signup successful!');
+                window.location.href = '/login.html'; // Redirect to login page
+            } else {
+                const errorData = await response.json();
+                alert('Signup failed: ' + errorData.message || 'Please try again.');
+            }
+        } catch (error) {
+            console.error('Error during signup:', error);
+            alert('An error occurred. Please try again.');
+        }
+    });
+</script>
+</body>
+</html>
